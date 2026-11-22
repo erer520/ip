@@ -1,0 +1,57 @@
+name: IP 端口扫描
+
+# 关键：workflow_dispatch 表示「手动触发」，只有这个才会在网页上出现 Run workflow 按钮
+on:
+  workflow_dispatch:
+    inputs:
+      start_ip:
+        description: "起始 IP（如 8.8.0.0）"
+        required: true
+        default: "8.8.0.0"
+      end_ip:
+        description: "结束 IP（如 8.8.255.255）"
+        required: true
+        default: "8.8.255.255"
+      port:
+        description: "要测试的端口（如 81）"
+        required: true
+        default: "81"
+      threads:
+        description: "并发线程数（公网建议 100~200）"
+        required: false
+        default: "100"
+      timeout:
+        description: "单个 IP 连接超时，单位秒"
+        required: false
+        default: "2"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350          # 单次任务最长运行时间（GitHub 上限 360 分钟）
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: 执行端口扫描
+        run: |
+          python ip_port_scanner.py \
+            --start "${{ github.event.inputs.start_ip }}" \
+            --end "${{ github.event.inputs.end_ip }}" \
+            --port "${{ github.event.inputs.port }}" \
+            --threads "${{ github.event.inputs.threads }}" \
+            --timeout "${{ github.event.inputs.timeout }}" \
+            --output open_result.txt
+
+      - name: 上传扫描结果（可在页面直接下载）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-result
+          path: open_result.txt
+          if-no-files-found: warn
